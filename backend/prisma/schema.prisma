@@ -1,0 +1,20 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:E:\\SqliteDBs\\recordings.db"
+}
+
+model Recording {
+  id       Int       @id @default(autoincrement())
+  MCAddress String @unique
+  name String 
+  date DateTime 
+  recordingLength Int 
+  filePath String
+}
