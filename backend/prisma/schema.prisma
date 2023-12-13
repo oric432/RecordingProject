@@ -12,9 +12,9 @@ datasource db {
 
 model Recording {
   id       Int       @id @default(autoincrement())
-  MCAddress String @unique
+  MCAddress String 
   name String 
-  date DateTime 
+  date DateTime @default(now())
   recordingLength Int 
-  filePath String
+  filePath String @unique
 }
