@@ -1,39 +1,61 @@
-import { useContext } from "react";
-import { FaPlay } from "react-icons/fa";
-import { IoPlayBack, IoPlayForward } from "react-icons/io5";
+import { useContext, useEffect, useState } from "react";
 import { MyContext } from "../MyContext";
-import Slider from "@mui/material/Slider";
+import { useFetchRecording } from "../custom_hooks/CustomFetchHooks";
+import AudioPlayer from "./AudioPlayer";
+import { formatTime } from "../utils";
 
 const ChosenRecording = () => {
   const { chosenRecording } = useContext(MyContext);
+  const { isLoading, error, data } = useFetchRecording(chosenRecording);
+  const [key, setKey] = useState(0);
+
+  useEffect(() => {
+    setKey((prevKey) => prevKey + 1);
+  }, [chosenRecording]);
+
+  if (!chosenRecording) {
+    return (
+      <div className="chosen_container">
+        <span className="container_label">Chose Recording</span>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="chosen_container">
+        <span className="container_label">Loading...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="chosen_container">
+        <span className="container_label">error: {error}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="chosen_container">
-      <h1>Chosen Recording</h1>
+      <span className="container_label">Chosen Recording</span>
       <div className="chosen">
         <div className="labels">
-          <label>{chosenRecording?.name || "Recording Name"}</label>
-          <label>Recording Length</label>
-          <label>Running Length</label>
+          <label>name: {chosenRecording.name || "Recording Name"}</label>
+          <label>
+            Length:
+            {formatTime(chosenRecording.recordingLength) || "Recording Length"}
+          </label>
         </div>
-        <Slider
-          defaultValue={50}
-          aria-label="Default"
-          valueLabelDisplay="auto"
+        <AudioPlayer
+          key={key}
+          audioUrl={data?.presignedUrl}
+          audioDuration={chosenRecording.recordingLength}
         />
-        <div className="icons">
-          <button type="button">
-            <IoPlayBack color="rgb(59 130 246)" size={42} />
-          </button>
-          <button type="button">
-            <FaPlay color="rgb(59 130 246)" size={42} />
-          </button>
-          <button type="button">
-            <IoPlayForward color="rgb(59 130 246)" size={42} />
-          </button>
-        </div>
       </div>
     </div>
   );
 };
+
 export default ChosenRecording;

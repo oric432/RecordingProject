@@ -19,8 +19,7 @@ export const useAddRecording = () => {
 
   const { mutate: addRecording, isLoading } = useMutation({
     mutationFn: async (recording) => {
-      console.log(recording);
-      if (!recording.name) {
+      if (!recording?.name) {
         toast.error("name is undefined");
         throw new Error("name is undefined");
       }
@@ -34,10 +33,21 @@ export const useAddRecording = () => {
       toast.success("recording added successfully");
     },
     onError: (error) => {
-      console.log(error);
       toast.error(`Error: ${error.response.data.msg}`);
     },
   });
 
   return { addRecording, isLoading };
+};
+
+export const useFetchRecording = (obj) => {
+  const { isLoading, error, data } = useQuery({
+    queryKey: obj ? ["recording", obj.id] : [],
+    queryFn: async () => {
+      const response = await recordingsFetch.get(`/${obj.id}`);
+      return response.data.data;
+    },
+  });
+
+  return { isLoading, error, data };
 };

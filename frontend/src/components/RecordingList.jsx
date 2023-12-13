@@ -53,7 +53,7 @@ const RecordingList = () => {
 
   return (
     <div className="recordings_container">
-      <h1>Recordings List</h1>
+      <span className="container_label">Recordings List</span>
       <div className="w-full flex flex-row justify-around content-center">
         <div className="relative">
           <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
