@@ -17,4 +17,5 @@ model Recording {
   date DateTime @default(now())
   recordingLength Int 
   filePath String @unique
+  fileSize String @default("10kb")
 }

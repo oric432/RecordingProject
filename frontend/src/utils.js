@@ -15,3 +15,29 @@ export const formatTime = (seconds) => {
 
   return formattedTime;
 };
+
+export const orderData = (value, data) => {
+  const orderedData = [...data];
+
+  switch (value) {
+    case 0:
+      orderedData.sort((a, b) => a.date.localeCompare(b.date));
+      break;
+    case 1:
+      orderedData.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case 2:
+      orderedData.sort((a, b) => a.recordingLength - b.recordingLength);
+      break;
+  }
+
+  return orderedData;
+};
+
+export const filterData = (value, data) => {
+  const filteredData = data.filter((recording) =>
+    recording?.name?.toLowerCase().includes(value.toLowerCase())
+  );
+
+  return filteredData;
+};

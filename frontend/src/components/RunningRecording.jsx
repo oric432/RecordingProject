@@ -10,32 +10,37 @@ const RunningRecording = () => {
   const [name, setName] = useState("");
   const [multicastAddress, setMulticastAddress] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState({});
+  const [recording, setRecording] = useState(null);
   const [uptime, setUptime] = useState(0);
 
   useSocket(
     "http://10.0.0.39:3002",
     "frontend",
+    //recording started
     ({ mcAddress, port, uptime }) => {
       setMulticastAddress(`${mcAddress}:${port}`);
       setIsRecording(true);
       setUptime(uptime);
     },
+    // recording stopped
     ({ recording }) => {
       setIsRecording(false);
       setRecording(recording);
       setUptime(recording?.recordingLength);
     },
+    // recording status
     ({ recording }) => {
       setRecording(recording);
       setMulticastAddress(recording?.MCAddress);
-      setIsRecording(false);
+      setIsRecording(recording?.isRecording);
       setUptime(recording?.recordingLength);
     }
   );
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    console.log(recording);
     if (recording) {
       addRecording({ ...recording, name });
       setName("");

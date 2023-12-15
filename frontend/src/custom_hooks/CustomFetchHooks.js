@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { recordingsFetch } from "../utils";
 import { toast } from "react-toastify";
+import { io } from "socket.io-client";
 
 export const useFetchRecordings = () => {
   const { isLoading, error, data } = useQuery({
@@ -26,6 +27,11 @@ export const useAddRecording = () => {
 
       const newRecording = await recordingsFetch.post("/", { ...recording });
 
+      const socket = io("http://10.0.0.39:3002", {
+        query: { type: "frontend" },
+      });
+      socket.emit("savedToDb", { saved: true });
+
       return newRecording;
     },
     onSuccess: () => {
@@ -33,6 +39,7 @@ export const useAddRecording = () => {
       toast.success("recording added successfully");
     },
     onError: (error) => {
+      console.log(error.response.data.msg);
       toast.error(`Error: ${error.response.data.msg}`);
     },
   });

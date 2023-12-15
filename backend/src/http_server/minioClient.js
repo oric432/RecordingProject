@@ -15,16 +15,12 @@ const saveRecording = async (audioBuffer) => {
   const bucketName = process.env.RECORDING_BUCKET_NAME;
 
   try {
-    await minioClient.putObject(
-      bucketName,
-      objectKey,
-      Buffer.concat(audioBuffer)
-    );
+    await minioClient.putObject(bucketName, objectKey, audioBuffer);
 
-    return { success: true, name: objectKey };
+    return { success: true, data: { name: objectKey } };
   } catch (error) {
     console.log(error);
-    return { success: false, msg: error };
+    return { success: false, data: { error } };
   }
 };
 

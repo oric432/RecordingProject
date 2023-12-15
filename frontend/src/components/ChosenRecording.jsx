@@ -32,7 +32,7 @@ const ChosenRecording = () => {
   if (error) {
     return (
       <div className="chosen_container">
-        <span className="container_label">error: {error}</span>
+        <span className="container_label">error: {error.message}</span>
       </div>
     );
   }
@@ -42,9 +42,10 @@ const ChosenRecording = () => {
       <span className="container_label">Chosen Recording</span>
       <div className="chosen">
         <div className="labels">
-          <label>name: {chosenRecording.name || "Recording Name"}</label>
+          <label>name: {chosenRecording.name || "Recording Name"}</label>{" "}
+          <labe>file size: {chosenRecording.fileSize}</labe>
           <label>
-            Length:
+            length:
             {formatTime(chosenRecording.recordingLength) || "Recording Length"}
           </label>
         </div>
