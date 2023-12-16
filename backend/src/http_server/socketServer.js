@@ -91,6 +91,8 @@ class SocketServer {
     socket.on("disconnect", () => {
       if (isBackend) {
         this.handleBackendDisconnect(socketId);
+      } else {
+        this.handleFrontendDisconnect(socketId);
       }
     });
   }
@@ -156,8 +158,11 @@ class SocketServer {
 
     // if a client exist add data to the existing buffer
     if (client) {
-      const decodedAudio = Buffer.from(data, "base64");
-      client.audioBuffer = Buffer.concat([client.audioBuffer, decodedAudio]);
+      const decodedAudioBuffer = Buffer.from(data, "base64");
+      client.audioBuffer = Buffer.concat([
+        client.audioBuffer,
+        decodedAudioBuffer,
+      ]);
     }
   }
 
@@ -230,7 +235,7 @@ class SocketServer {
     }
   }
 
-  handelFrontendDisconnect(socketId) {
+  handleFrontendDisconnect(socketId) {
     console.log(`frontend client ${socketId} disconnected`);
     this.clients.delete(socketId);
   }

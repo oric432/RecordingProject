@@ -10,6 +10,7 @@ const ChosenRecording = () => {
   const [key, setKey] = useState(0);
 
   useEffect(() => {
+    // ensure component unmounting
     setKey((prevKey) => prevKey + 1);
   }, [chosenRecording]);
 
@@ -42,8 +43,8 @@ const ChosenRecording = () => {
       <span className="container_label">Chosen Recording</span>
       <div className="chosen">
         <div className="labels">
-          <label>name: {chosenRecording.name || "Recording Name"}</label>{" "}
-          <labe>file size: {chosenRecording.fileSize}</labe>
+          <label>name: {chosenRecording.name || "Recording Name"}</label>
+          <label>file size: {chosenRecording.fileSize}</label>
           <label>
             length:
             {formatTime(chosenRecording.recordingLength) || "Recording Length"}

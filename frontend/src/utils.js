@@ -17,6 +17,10 @@ export const formatTime = (seconds) => {
 };
 
 export const orderData = (value, data) => {
+  if (!data) {
+    return [];
+  }
+
   const orderedData = [...data];
 
   switch (value) {
@@ -35,6 +39,10 @@ export const orderData = (value, data) => {
 };
 
 export const filterData = (value, data) => {
+  if (!data) {
+    return [];
+  }
+
   const filteredData = data.filter((recording) =>
     recording?.name?.toLowerCase().includes(value.toLowerCase())
   );
