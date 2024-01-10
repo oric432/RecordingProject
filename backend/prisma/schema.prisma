@@ -18,4 +18,5 @@ model Recording {
   recordingLength Int 
   filePath String @unique
   fileSize String @default("10kb")
+  recordingCount Int @default(2)
 }

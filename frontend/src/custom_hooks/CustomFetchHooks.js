@@ -52,7 +52,7 @@ export const useFetchRecording = (obj) => {
     queryKey: obj ? ["recording", obj.id] : [],
     queryFn: async () => {
       const response = await recordingsFetch.get(`/${obj.id}`);
-      return response.data.data;
+      return response.data;
     },
   });
 

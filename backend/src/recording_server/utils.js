@@ -1,14 +1,3 @@
-const formatBytes = (bytes) => {
-  if (bytes === 0) return "0 Bytes";
-
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
-
 const parseRtpPacket = (packet) => {
   // Basic RTP header structure (assumes 12-byte header)
   if (packet.length < 12) {
@@ -40,25 +29,8 @@ const parseRtpPacket = (packet) => {
   };
 };
 
-const saveRecordingsToDB = async (body) => {
-  try {
-    const response = await fetch("http://localhost:3000/api/v1/recordings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json();
-
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
+const saveRecordingsToDB = (sessionId) => {
+  console.log("saved to db");
 };
 
-module.exports = {
-  formatBytes,
-  parseRtpPacket,
-  saveRecordingsToDB,
-};
+module.exports = { parseRtpPacket, saveRecordingsToDB };

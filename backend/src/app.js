@@ -1,8 +1,6 @@
 const express = require("express");
 const app = express();
 const morgan = require("morgan");
-const http = require("http");
-const { SocketServer, minioClient } = require("./http_server");
 require("dotenv").config();
 require("express-async-errors");
 
@@ -29,18 +27,14 @@ const errorHandlerMiddleware = require("./middlewares/errorHandlerMiddleware");
 app.use(errorHandlerMiddleware);
 
 //server initialization
+const httpServer = require("./http_server/tcpServer");
+
 const port = process.env.PORT || 3001;
 
 const startApplication = () => {
-  const httpServer = http.createServer();
-  const socketServer = new SocketServer(
-    httpServer,
-    minioClient,
-    "10.0.0.39",
-    3002
-  );
-
-  socketServer.startServer();
+  httpServer.listen(3005, "127.0.0.1", () => {
+    console.log("server is listening");
+  });
 
   app.listen(port, () => console.log(`Server is listening on port ${port}`));
 };

@@ -47,13 +47,14 @@ const ChosenRecording = () => {
           <label>file size: {chosenRecording.fileSize}</label>
           <label>
             length:
-            {formatTime(chosenRecording.recordingLength) || "Recording Length"}
+            {formatTime(chosenRecording.recordingLength / 1000) ||
+              "Recording Length"}
           </label>
         </div>
         <AudioPlayer
           key={key}
-          audioUrl={data?.presignedUrl}
-          audioDuration={chosenRecording.recordingLength}
+          audioUrls={data}
+          audioDuration={chosenRecording.recordingLength / 1000}
         />
       </div>
     </div>

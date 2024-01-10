@@ -6,6 +6,7 @@ import RunningRecording from "./components/RunningRecording";
 import { MyContext } from "./MyContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import RunningRecordings from "./components/RunningRecordings";
 
 function App() {
   const [chosenRecording, setChosenRecording] = useState(null);
@@ -14,7 +15,8 @@ function App() {
       <ToastContainer />
       <MyContext.Provider value={{ chosenRecording, setChosenRecording }}>
         <RecordingList />
-        <RunningRecording />
+        <RunningRecordings />
+        {/* <RunningRecording /> */}
         <ChosenRecording />
       </MyContext.Provider>
     </>

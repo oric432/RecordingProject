@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatTime } from "../utils";
 
 const CounterComponent = ({ count }) => {
   const [counter, setCounter] = useState(count);
@@ -11,7 +12,7 @@ const CounterComponent = ({ count }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  return <label>{counter}</label>;
+  return <label>{formatTime(counter)}</label>;
 };
 
 export default CounterComponent;

@@ -1,58 +1,142 @@
-const mixAudioBuffers = (buffers) => {
-  const bufferLength = buffers[0].length;
+function mergeBuffers(mixedBuffer, buffer, start, end) {
+  console.log(
+    `merged -> mixedBufferLength=${mixedBuffer.length}, bufferLength=${buffer.length}, start=${start}, end=${end}`
+  );
+  for (let i = start, j = 0; i < end && j < buffer.length; i += 2, j += 2) {
+    // merge bytes by adding, and clamping them to be in the range of 16-bit signed integers
+    let mergedSample = buffer.readInt16LE(j) + mixedBuffer.readInt16LE(i);
+    mergedSample = Math.min(
+      Math.pow(2, 15) - 1,
+      Math.max(-1 * Math.pow(2, 15), mergedSample)
+    );
 
-  // allocate space for the mixed recording
-  const mixedBuffer = Buffer.alloc(bufferLength, 0);
+    mixedBuffer.writeInt16LE(mergedSample, i);
+  }
+}
 
-  for (const buffer of buffers) {
-    for (let i = 0; i < buffer.length; i += 2) {
-      if (i + 2 <= mixedBuffer.length) {
-        // merge bytes by adding, and clamping them to be in the range of 16-bit signed integers
-        let mergedSample = buffer.readInt16LE(i) + mixedBuffer.readInt16LE(i);
-        mergedSample = Math.min(
-          Math.pow(2, 15) - 1,
-          Math.max(-1 * Math.pow(2, 15), mergedSample)
-        );
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
-        mixedBuffer.writeInt16LE(mergedSample, i);
-      }
+function normalizeBuffer(audioBuffer) {
+  // Get buffer length in samples
+  const numSamples = audioBuffer.length / 2;
+
+  // Go through samples and get max
+  let max = 0;
+  for (let i = 0; i < numSamples; i++) {
+    const sample = audioBuffer.readInt16LE(i * 2);
+    const absValue = Math.abs(sample);
+
+    if (absValue > -32768 && absValue < 32767 && absValue > max) {
+      max = absValue;
     }
   }
 
-  // normalize the audio
-  normalizeBuffer(mixedBuffer);
+  // Calculate normalization factor
+  // const normalizationFactor = 1.0 / (32767 / max);
+  const offset = 32767 - max;
+  console.log(max, offset);
 
-  return mixedBuffer;
-};
+  // Apply normalization
+  for (let i = 0; i < numSamples; i++) {
+    let sample = audioBuffer.readInt16LE(i * 2);
+    sample = clamp(sample + offset, -32768, 32767);
+    audioBuffer.writeInt16LE(sample, i * 2);
+  }
+}
 
-const normalizeBuffer = (buffer) => {
-  let maxAmplitude = 0;
+function normalizeLoudness(inputBuffer, targetLoudness = -23) {
+  // Measure the input audio loudness
+  const currentLoudness = loudnessIntegrated(inputBuffer);
+  console.log(currentLoudness);
 
-  // find the absolute maximum (amplitude)
-  for (let i = 0; i < buffer.length; i += 2) {
-    if (i + 2 <= buffer.length) {
-      const sample = buffer.readInt16LE(i);
-      maxAmplitude = Math.max(maxAmplitude, Math.abs(sample));
-    }
+  // Calculate the gain adjustment needed
+  const gainAdjustment = targetLoudness - currentLoudness;
+  console.log(gainAdjustment);
+
+  // Adjust the gain using the calculated adjustment
+  applyGain(inputBuffer, gainAdjustment);
+}
+
+function getCurrentLoudness(inputBuffer) {
+  // Assuming inputBuffer is a Buffer of 16-bit PCM audio data
+  const samples = new Int16Array(inputBuffer.buffer);
+  const numSamples = samples.length;
+
+  let sumSquared = 0;
+
+  for (let i = 0; i < numSamples; i++) {
+    const sampleValue = samples[i] / 32768.0; // Normalize to the range [-1, 1]
+    sumSquared += sampleValue * sampleValue;
   }
 
-  // find the normalization factor, used to scale down each wave (amplitude value)
-  const normalizationFactor =
-    maxAmplitude === 0 ? 1 : (Math.pow(2, 15) - 1) / maxAmplitude;
+  console.log(sumSquared);
 
-  for (let i = 0; i < buffer.length; i += 2) {
-    if (i + 2 <= buffer.length) {
-      const sample = buffer.readInt16LE(i);
-      const normalizedSample = Math.round(sample * normalizationFactor);
-      // clamping to 16-bit signed integers
-      const clampedSample = Math.min(
-        Math.pow(2, 15) - 1,
-        Math.max(-1 * Math.pow(2, 15), normalizedSample)
-      );
+  const rms = Math.sqrt(sumSquared / numSamples);
+  const loudness = 20 * Math.log10(rms); // Convert RMS to decibels (dB)
 
-      buffer.writeInt16LE(clampedSample, i);
-    }
+  return loudness;
+}
+
+function loudnessIntegrated(buffer, sampleRate = 44100) {
+  // Constants for the ITU-R BS.1770-4 algorithm
+  const K = 0.691;
+  const S = 0.002;
+  const alpha = 0.3;
+
+  // Filter coefficients for the RMS filter
+  const b = [1.0, -2.0, 1.0];
+  const a = [1.0, -2.0 * alpha, alpha ** 2];
+
+  const samples = new Int16Array(buffer.buffer);
+  // Apply the RMS filter to the squared samples
+  const squaredSamples = samples.map((sample) => sample * sample);
+  console.log(squaredSamples);
+  const rmsFiltered = new Array(buffer.length).fill(0);
+  for (let i = 2; i < samples.length - 1; i++) {
+    rmsFiltered[i] =
+      b[0] * squaredSamples[i] +
+      b[1] * squaredSamples[i - 1] +
+      b[2] * squaredSamples[i + 1] -
+      a[1] * rmsFiltered[i - 1] -
+      a[2] * rmsFiltered[i - 2];
   }
-};
+  console.log(rmsFiltered);
 
-module.exports = mixAudioBuffers;
+  // Apply the K-weighting
+  const kWeighting = rmsFiltered.reduce((sum, value) => sum + K * value, 0);
+  console.log(Math.abs(kWeighting));
+
+  // Calculate the duration of the audio in seconds
+  const durationInSeconds = 5;
+
+  // Calculate the integrated loudness in LUFS
+  const integratedLoudness = 10.0 * Math.log10(S + Math.abs(kWeighting));
+  console.log(integratedLoudness);
+
+  return integratedLoudness;
+}
+
+function applyGain(inputBuffer, gainAdjustment) {
+  // Assuming inputBuffer is a Buffer of 16-bit PCM audio data
+
+  const linearGain = Math.pow(10, gainAdjustment / 20);
+
+  for (let i = 0; i < inputBuffer.length; i += 2) {
+    let sample = inputBuffer.readInt16LE(i);
+
+    // Apply gain to each 16-bit PCM sample
+    sample = Math.round(sample * linearGain);
+
+    // Clamp the sample value to the valid range
+    sample = clamp(sample, -32768, 32767);
+
+    // Write the clamped sample back to the buffer
+    inputBuffer.writeInt16LE(sample, i);
+  }
+
+  console.log("adjusted");
+}
+
+module.exports = { mergeBuffers, normalizeBuffer, normalizeLoudness };

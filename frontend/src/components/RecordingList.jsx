@@ -56,7 +56,6 @@ const RecordingList = () => {
             value={order}
             onChange={({ target: { value } }) => {
               setOrder(value);
-              console.log(orderData(value, data));
               setRecordings(orderData(value, data));
             }}
           >

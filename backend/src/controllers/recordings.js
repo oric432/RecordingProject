@@ -44,28 +44,37 @@ const getSingleRecording = async (req, res) => {
   }
 
   const bucketName = process.env.RECORDING_BUCKET_NAME;
+  let urls = [];
 
-  minioClient.presignedGetObject(
-    bucketName,
-    recording.filePath,
-    parseInt(process.env.MINIO_PRE_URL_EXP),
-    (err, presignedUrl) => {
-      if (err) {
-        throw new BadRequestError("could not create a presigned URL");
-      }
-
-      if (!presignedUrl) {
-        throw new NotFoundError(
-          "could not find object in the specified bucket"
-        );
-      }
-
-      return res.status(StatusCodes.OK).json({
-        msg: "created presigned url",
-        data: { ...recording, presignedUrl },
+  async function getPresignedUrl(index) {
+    return new Promise((resolve, reject) => {
+      let objectName = `${recording.name}_${index}.wav`;
+      minioClient.presignedGetObject(bucketName, objectName, (err, url) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(url);
+        }
       });
+    });
+  }
+
+  async function getPresignedUrls() {
+    for (let index = 0; index <= recording.recordingCount; index++) {
+      try {
+        const url = await getPresignedUrl(index);
+        urls.push(url);
+      } catch (error) {
+        console.error(`Error getting presigned URL for index ${index}:`, error);
+        // Handle the error as needed, e.g., throw an exception or continue with the next iteration
+      }
     }
-  );
+  }
+
+  // Call the asynchronous function and wait for it to complete
+  await getPresignedUrls();
+
+  return res.status(StatusCodes.OK).json(urls);
 };
 
 module.exports = {
