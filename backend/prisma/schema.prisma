@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:E:\\SqliteDBs\\recordings.db"
+  url      = "file:C:\\Other\\SqlDbs\\recordings.db"
 }
 
 model Recording {
@@ -19,4 +19,10 @@ model Recording {
   filePath String @unique
   fileSize String @default("10kb")
   recordingCount Int @default(2)
+}
+
+model RunningRecording {
+  id String @id 
+  MCAdress String
+  date DateTime @default(now())
 }

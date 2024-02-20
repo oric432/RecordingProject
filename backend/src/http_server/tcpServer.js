@@ -11,13 +11,10 @@ const ioServer = socketIO(httpServer, {
 });
 
 const getStatuses = (recordings) => {
-  const data = [];
+  let data = [];
+
   for (const recording of recordings.values()) {
-    if (recording instanceof AudioRecorder) {
-      data.push(recording.getServerData());
-    } else {
-      console.error("Invalid recording object:", recording);
-    }
+    data.push(recording.getServerData());
   }
 
   return data;

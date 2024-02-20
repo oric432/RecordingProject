@@ -54,7 +54,7 @@ const ChosenRecording = () => {
         <AudioPlayer
           key={key}
           audioUrls={data}
-          audioDuration={chosenRecording.recordingLength / 1000}
+          audioDuration={parseInt(chosenRecording.recordingLength) / 1000}
         />
       </div>
     </div>

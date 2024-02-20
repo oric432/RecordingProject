@@ -5,9 +5,9 @@ import { IoPlayBack, IoPlayForward } from "react-icons/io5";
 import { formatTime } from "../utils";
 
 const AudioPlayer = ({ audioUrls, audioDuration }) => {
-  const JUMP_INTERVAL = 5;
+  const JUMP_INTERVAL = 2;
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(0);
+  const [counter, setCounter] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioIndex, setAudioIndex] = useState(0);
   const audioRef = useRef(null);
@@ -16,8 +16,9 @@ const AudioPlayer = ({ audioUrls, audioDuration }) => {
     const audioElement = audioRef.current;
 
     if (audioElement) {
+      console.log(audioElement.currentTime);
       const updateTime = () => {
-        setCurrentTime(audioElement.currentTime + totalDuration);
+        setCurrentTime(audioElement.currentTime);
       };
 
       audioElement.addEventListener("timeupdate", updateTime);
@@ -33,7 +34,7 @@ const AudioPlayer = ({ audioUrls, audioDuration }) => {
         audioElement.removeEventListener("ended", endedHandler);
       };
     }
-  }, [audioIndex, audioUrls, totalDuration]);
+  }, [audioIndex, audioUrls]);
 
   useEffect(() => {
     // Auto-play when component mounts
@@ -60,23 +61,55 @@ const AudioPlayer = ({ audioUrls, audioDuration }) => {
 
   const handleProgressBar = (e) => {
     const newTime = e.target.value;
-    audioRef.current.currentTime = newTime - totalDuration;
-    setCurrentTime(newTime);
+    audioRef.current.currentTime = newTime;
+    console.log(newTime);
+    console.log(audioRef.current.duration);
+    if (newTime >= audioRef.current.duration){
+      playNextAudio();
+    }
+    else if(newTime <= 0)
+    {
+      playPrevAudio();
+    }
+    else {
+      setCurrentTime(newTime);
+    }
   };
+
+  const fastForward = () => {
+    if (audioRef.current.currentTime + JUMP_INTERVAL >= audioRef.current.duration)
+      playNextAudio();
+    else
+      audioRef.current.currentTime += JUMP_INTERVAL;
+  }
+
+  const fastBackward = () => {
+    if (audioRef.current.currentTime - JUMP_INTERVAL <= 0)
+      playPrevAudio();
+    else
+      audioRef.current.currentTime -= JUMP_INTERVAL;
+  }
+
+  const playPrevAudio = () => {
+    if (audioIndex > 0) {
+      setCounter(counter - audioRef.current.duration);
+      setAudioIndex(audioIndex - 1);
+    }
+    else 
+    {
+      setCounter(0);
+      setAudioIndex(audioIndex)
+    }
+  }
 
   const playNextAudio = () => {
     if (audioIndex < audioUrls.length - 1) {
+      setCounter(counter + audioRef.current.duration);
       setAudioIndex(audioIndex + 1);
-      setTotalDuration(totalDuration + audioRef.current.duration);
-      audioRef.current.src = audioUrls[audioIndex + 1];
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((error) => {
-        console.error("Error playing audio:", error);
-      });
     } else {
       // Reset to the first audio file if the last one has finished
+      setCounter(0);
       setAudioIndex(0);
-      setTotalDuration(0);
       setIsPlaying(false);
     }
   };
@@ -96,22 +129,22 @@ const AudioPlayer = ({ audioUrls, audioDuration }) => {
           onEnded={playNextAudio}
           type="audio/wav"
         />
-        <label>{formatTime(currentTime)}</label>
+        <label>{formatTime(currentTime + counter)}</label>
         <Slider
-          value={currentTime}
-          max={totalDuration + audioDuration}
+          value={currentTime + counter}
+          max={audioDuration}
           step={0.01}
           valueLabelDisplay="auto"
           valueLabelFormat={(value) => formatTime(value)}
           onChange={handleProgressBar}
           aria-label="Default"
         />
-        <label>{formatTime(totalDuration + audioDuration)}</label>
+        <label>{formatTime(audioDuration)}</label>
       </div>
       <div className="icons">
         <button
           type="button"
-          onClick={() => (audioRef.current.currentTime -= JUMP_INTERVAL)}
+          onClick={fastBackward}
         >
           <IoPlayBack color="rgb(59 130 246)" size={42} />
         </button>
@@ -124,7 +157,7 @@ const AudioPlayer = ({ audioUrls, audioDuration }) => {
         </button>
         <button
           type="button"
-          onClick={() => (audioRef.current.currentTime += JUMP_INTERVAL)}
+          onClick={fastForward}
         >
           <IoPlayForward color="rgb(59 130 246)" size={42} />
         </button>

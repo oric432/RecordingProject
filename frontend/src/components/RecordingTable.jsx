@@ -47,7 +47,9 @@ const RecordingTable = ({ recordings }) => {
                   {new Date(recording?.date).toUTCString()}
                 </TableCell>
                 <TableCell>{recording?.name}</TableCell>
-                <TableCell>{recording?.recordingLength}</TableCell>
+                <TableCell>
+                  {(recording?.recordingLength / 1000).toFixed(2)}s
+                </TableCell>
                 <TableCell>{recording?.fileSize || "10mb"}</TableCell>
                 <TableCell>{recording?.MCAddress}</TableCell>
               </TableRow>

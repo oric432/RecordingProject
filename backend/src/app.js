@@ -17,25 +17,25 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 // routers
-const recordingRouter = require("./routes/recordings");
+const recordingRouter = require("./routes/recordings.js");
+const runningRecordingRouter = require("./routes/runningRecording.js");
 
 //routes
 app.use("/api/v1/recordings", recordingRouter);
+app.use("/api/v1/runningRecording", runningRecordingRouter);
 
 //error middleware
-const errorHandlerMiddleware = require("./middlewares/errorHandlerMiddleware");
+const errorHandlerMiddleware = require("./middlewares/errorHandlerMiddleware.js");
 app.use(errorHandlerMiddleware);
 
 //server initialization
-const httpServer = require("./http_server/tcpServer");
+const SocketIOClient = require("./recording_connection/recordingClient");
 
 const port = process.env.PORT || 3001;
 
 const startApplication = () => {
-  httpServer.listen(3005, "127.0.0.1", () => {
-    console.log("server is listening");
-  });
-
+  const socketClient = new SocketIOClient("http://localhost:3005");
+  socketClient.setupEvents();
   app.listen(port, () => console.log(`Server is listening on port ${port}`));
 };
 

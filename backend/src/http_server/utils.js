@@ -26,6 +26,7 @@ const parseRtpPacket = (packet) => {
     (packet[4] << 24) | (packet[5] << 16) | (packet[6] << 8) | packet[7];
   const ssrc =
     (packet[8] << 24) | (packet[9] << 16) | (packet[10] << 8) | packet[11];
+  const payload = packet.subarray(12, packet.length);
 
   return {
     version,
@@ -37,6 +38,7 @@ const parseRtpPacket = (packet) => {
     sequenceNumber,
     timestamp,
     ssrc,
+    payload,
   };
 };
 

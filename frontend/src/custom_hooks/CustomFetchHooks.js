@@ -7,13 +7,25 @@ export const useFetchRecordings = () => {
   const { isLoading, error, data } = useQuery({
     queryKey: ["recordings"],
     queryFn: async () => {
-      const response = await recordingsFetch.get("/");
+      const response = await recordingsFetch.get("/recordings/");
       return response.data.data;
     },
   });
 
   return { isLoading, error, data };
 };
+
+export const useFetchRunningRecordings = () => {
+  const {isLoading, error, data} = useQuery({
+    queryKey: ["runningRecordings"],
+    queryFn: async () => {
+      const response = await recordingsFetch.get('/runningRecording/');
+      return response.data.data;
+    },
+  });
+
+  return {isLoading, error, data};
+}
 
 export const useAddRecording = () => {
   const queryClient = useQueryClient();
@@ -51,7 +63,7 @@ export const useFetchRecording = (obj) => {
   const { isLoading, error, data } = useQuery({
     queryKey: obj ? ["recording", obj.id] : [],
     queryFn: async () => {
-      const response = await recordingsFetch.get(`/${obj.id}`);
+      const response = await recordingsFetch.get(`/recordings/${obj.id}`);
       return response.data;
     },
   });

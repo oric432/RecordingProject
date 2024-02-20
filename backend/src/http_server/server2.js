@@ -1,171 +1,170 @@
 const dgram = require("dgram");
-const {
-  mergeBuffers,
-  normalizeBuffer,
-  normalizeBuffer2,
-  normalizeLoudness,
-} = require("./merge");
-const { parseRtpPacket, saveRecordingsToDB } = require("./utils");
+const { mergeBuffers } = require("./merge");
+const { parseRtpPacket, saveRecordingsToDB, formatBytes } = require("./utils");
 const { v4: uuidv4 } = require("uuid");
 const { saveRecording } = require("./minioClient");
 
 class AudioRecorder {
-  constructor(multicastAddress, port) {
-    // Constants
-    this.MULTICAST_ADDR = multicastAddress;
-    this.PORT = port;
-    this.SAMPLE_RATE = 44100;
-    this.BIT_PER_SAMPLE = 16;
-    this.DURATION = 5 * 1000; // 5 seconds in ms
-    this.BPMS = (this.SAMPLE_RATE * this.BIT_PER_SAMPLE) / 8 / 1000; // 88.2
-    this.SESSION_ID = uuidv4();
+	// TODO Consider using event emitter to decouple DB/Minio dependency
 
-    // Server variables
-    this.recordingCount = 0;
-    this.udpServer = dgram.createSocket({ type: "udp4", reuseAddr: true });
-    this.buffer = Buffer.alloc(this.BPMS * this.DURATION); // 882000 bytes
-    this.startedDate = new Date();
-    this.count = 0;
-    this.clients = new Map();
-    this.offset = 0;
-    this.offsets = [];
+	constructor(multicastAddress, port) {
+		// Constants
+		this.MULTICAST_ADDR = multicastAddress;
+		this.PORT = port;
+		this.SAMPLE_RATE = 44100;
+		this.BIT_PER_SAMPLE = 16;
+		this.DURATION = 5 * 1000; // 5 seconds in ms
+		this.BPMS = (this.SAMPLE_RATE * this.BIT_PER_SAMPLE) / 8 / 1000; // 88.2
+		this.SESSION_ID = uuidv4();
 
-    this.setupServer();
-  }
+		// Server variables
+		this.recordingCount = 0;
+		this.udpServer = dgram.createSocket({ type: "udp4", reuseAddr: true });
+		this.buffer = Buffer.alloc(this.BPMS * this.DURATION); // 882000 bytes
+		this.startedDate = new Date();
+		this.count = 0;
+		this.clients = new Map();
 
-  setupServer() {
-    this.udpServer.on("error", (err) => {
-      console.log(`Server error:\n${err.stack}`);
-      this.udpServer.close();
-    });
+		this.setupServer();
+	}
 
-    this.udpServer.on("message", (msg, rinfo) => {
-      this.handleMessage(msg, rinfo);
-    });
+	setupServer() {
+		this.udpServer.on("error", (err) => {
+			console.log(`Server error:\n${err.stack}`);
+			// TODO Check if socket needs to be closed after error
+			this.udpServer.close();
+		});
 
-    this.udpServer.bind(this.PORT, this.MULTICAST_ADDR);
+		this.udpServer.on("message", (msg) => {
+			this.handleMessage(msg);
+		});
 
-    process.on("SIGINT", () => {
-      this.handleDisconnect();
-    });
-  }
+		this.udpServer.bind(this.PORT, this.MULTICAST_ADDR);
 
-  handleMessage(msg, rinfo) {
-    const rtpPacket = parseRtpPacket(msg);
+		// TODO Handle on a global app level
+		process.on("SIGINT", () => {
+			this.handleDisconnect();
+		});
+	}
 
-    if (rtpPacket) {
-      this.updateClient(rtpPacket);
-      this.processData(msg, rtpPacket);
-    } else {
-      console.log("Received non-RTP packet");
-    }
-  }
+	handleMessage(msg) {
+		///// TODO Include rtp payload in rtpPacket and avoid subarry call in processData()
+		const rtpPacket = parseRtpPacket(msg);
 
-  updateClient(rtpPacket) {
-    if (!this.clients.has(rtpPacket.ssrc)) {
-      this.clients.set(rtpPacket.ssrc, {
-        timestamp: 0,
-        startedDate: new Date(),
-      });
-    } else {
-      const existingClient = this.clients.get(rtpPacket.ssrc);
+		if (rtpPacket) {
+			this.updateClient(rtpPacket);
+			this.processData(rtpPacket);
+		} else {
+			console.log("Received non-RTP packet");
+		}
+	}
 
-      this.clients.set(rtpPacket.ssrc, {
-        timestamp: rtpPacket.timestamp,
-        startedDate: existingClient.startedDate,
-      });
-    }
-  }
+	updateClient(rtpPacket) {
+		const client = this.clients.get(rtpPacket.ssrc);
 
-  async processData(msg, rtpPacket) {
-    const client = this.clients.get(rtpPacket.ssrc);
-    console.log("ssrc: ", rtpPacket.ssrc);
-    console.log("sequence number: ", rtpPacket.sequenceNumber);
-    console.log("timestamp: ", rtpPacket.timestamp);
+		if (!client) {
+			this.clients.set(rtpPacket.ssrc, {
+				timestamp: 0,
+				startedDate: new Date(),
+			});
+		} else {
+			this.clients.set(rtpPacket.ssrc, {
+				timestamp: rtpPacket.timestamp,
+				startedDate: client.startedDate,
+			});
+		}
+	}
 
-    // remove header to get only the required data
-    let data = msg.subarray(12, msg.length);
-    // calculate how much time it took for the data to move : (data[bytes] / BPMS[bytes/ms] = transfer-rate[ms])
-    const bpmsg = Math.round(data.length / this.BPMS);
+	async processData(rtpPacket) {
+		const client = this.clients.get(rtpPacket.ssrc);
+		console.log("ssrc: ", rtpPacket.ssrc);
+		console.log("sequence number: ", rtpPacket.sequenceNumber);
+		console.log("timestamp: ", rtpPacket.timestamp);
 
-    console.log("count w: ", this.count);
+		// remove header to get only the required data
+		let data = rtpPacket.payload;
+		// calculate how much time it took for the data to move : (data[bytes] / BPMS[bytes/ms] = transfer-rate[ms])
+		const bpmsg = Math.round(data.length / this.BPMS);
 
-    if (this.count === 0) {
-      this.count = Math.round(
-        ((new Date() - this.startedDate) / bpmsg) * data.length
-      );
-    } else {
-      this.count += data.length;
-    }
+		if (this.count === 0) {
+			// TODO Better variable names will make processes clearer without comments
+			this.count = Math.round(
+				((new Date() - this.startedDate) / bpmsg) * data.length
+			);
+		} else {
+			this.count += data.length;
+		}
 
-    // calculate the time that has passed since the recording was up : (client-joined[date] - recording-started[date] = ms-offset[ms])
-    const currentTime = client.startedDate - this.startedDate;
-    console.log("time offset: ", currentTime);
-    console.log("this.offset: ", this.offset);
+		// calculate the time that has passed since the recording was up : (client-joined[date] - recording-started[date] = ms-offset[ms])
+		const currentTime = client.startedDate - this.startedDate;
+		console.log("time offset: ", currentTime);
 
-    let start = Math.round(
-      ((currentTime + rtpPacket.timestamp) / bpmsg) * data.length -
+		let start = Math.round(
+			((currentTime + rtpPacket.timestamp) / bpmsg) * data.length -
         this.buffer.length * this.recordingCount
-    );
+		);
 
-    if (start >= 0) {
-      if (start + data.length > this.buffer.length) {
-        let left = this.buffer.length - start;
-        left = left % 2 !== 0 ? left - 1 : left;
-        mergeBuffers(this.buffer, data.subarray(0, left), start, start + left);
+		if (start < 0) {
+			return;
+		}
 
-        data = data.subarray(left, data.length);
-        start = 0;
+		if (start + data.length > this.buffer.length) {
+			let left = this.buffer.length - start;
+			left = left % 2 !== 0 ? left - 1 : left;
+			mergeBuffers(this.buffer, data.subarray(0, left), start, start + left);
 
-        const recordingBuffer = Buffer.from(this.buffer);
-        // normalizeLoudness(recordingBuffer);
+			data = data.subarray(left, data.length);
+			start = 0;
 
-        // write to minio
-        await saveRecording(
-          this.SESSION_ID,
-          this.recordingCount++,
-          recordingBuffer
-        );
+			const recordingBuffer = Buffer.from(this.buffer);
+			// normalizeLoudness(recordingBuffer);
 
-        this.buffer.fill(0);
-        this.count = data.length;
-      }
+			this.count = data.length;
+			// write to minio
+			await saveRecording(
+				this.SESSION_ID,
+				this.recordingCount++,
+				recordingBuffer
+			);
 
-      mergeBuffers(this.buffer, data, start, start + data.length);
-    }
-  }
+			this.buffer.fill(0);
+		}
 
-  async handleDisconnect() {
-    this.udpServer.close();
-    console.log(`${this.MULTICAST_ADDR}:${this.PORT} audio session has closed`);
-    const cutBuffer = this.buffer.subarray(0, this.count);
-    // normalizeLoudness(cutBuffer);
+		mergeBuffers(this.buffer, data, start, start + data.length);
+	}
 
-    await saveRecording(this.SESSION_ID, this.recordingCount, cutBuffer);
-    await saveRecordingsToDB({
-      MCAddress: `${this.MULTICAST_ADDR}:${this.PORT}`,
-      name: `${this.SESSION_ID}`,
-      date: this.startedDate,
-      recordingLength:
+	async handleDisconnect() {
+		this.udpServer.close();
+
+		console.log(`${this.MULTICAST_ADDR}:${this.PORT} audio session has closed`);
+
+		const cutBuffer = this.buffer.subarray(0, this.count);
+		// normalizeLoudness(cutBuffer);
+
+		await saveRecording(this.SESSION_ID, this.recordingCount, cutBuffer);
+		await saveRecordingsToDB({
+			MCAddress: `${this.MULTICAST_ADDR}:${this.PORT}`,
+			name: `${this.SESSION_ID}`,
+			date: this.startedDate,
+			recordingLength:
         this.DURATION * this.recordingCount +
         parseInt(cutBuffer.length / this.BPMS),
-      filePath: this.SESSION_ID,
-      fileSize: (
-        this.buffer.length * this.recordingCount +
-        cutBuffer.length
-      ).toString(),
-      recordingCount: this.recordingCount,
-    });
-  }
+			filePath: this.SESSION_ID,
+			fileSize: formatBytes(
+				this.buffer.length * this.recordingCount + cutBuffer.length
+			),
+			recordingCount: this.recordingCount,
+		});
+	}
 
-  getServerData() {
-    return {
-      id: this.SESSION_ID,
-      multicastAddress: this.MULTICAST_ADDR,
-      port: this.PORT,
-      started: this.startedDate,
-    };
-  }
+	getServerData() {
+		return {
+			id: this.SESSION_ID,
+			multicastAddress: this.MULTICAST_ADDR,
+			port: this.PORT,
+			started: this.startedDate,
+		};
+	}
 }
 
 module.exports = { AudioRecorder };

@@ -7,24 +7,29 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
 import CounterComponent from "./CounterComponent";
+import { useFetchRunningRecordings } from "../custom_hooks/CustomFetchHooks";
 
 const RunningRecordings = () => {
-  const [recordings, setRecordings] = useState(null);
+  const {isLoading, error, data} = useFetchRunningRecordings();
 
-  useEffect(() => {
-    const socket = io("http://127.0.0.1:3005");
+  if (isLoading) {
+    return (<div className="running_recordings_container">
+      <span className="container_label">Running Recordings</span>
+      <div className="running_recordings_list">
+        Loading...
+      </div>
+    </div>);
+  }
 
-    socket.on("recordingsStatus", (recordings) => {
-      setRecordings(recordings);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  if(error) {
+    return (<div className="running_recordings_container">
+      <span className="container_label">Running Recordings</span>
+      <div className="running_recordings_list">
+        error: {error.message}
+      </div>
+    </div>);
+  }
 
   return (
     <div className="running_recordings_container">
@@ -41,10 +46,10 @@ const RunningRecordings = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {recordings?.map((recording) => {
-                const { id, multicastAddress, port, started } = recording;
+              {data?.map((recording) => {
+                const { id, multicastAddress, port, date } = recording;
                 const timeOffset = Math.round(
-                  (new Date() - new Date(started)) / 1000
+                  (new Date() - new Date(date)) / 1000
                 );
 
                 return (
